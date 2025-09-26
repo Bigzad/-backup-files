@@ -1,0 +1,2534 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>System Diagnostics - Macro Calculator</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.4.0/css/all.min.css">
+    
+    <!-- Supabase Authentication System -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.39.3/dist/umd/supabase.min.js"></script>
+    <script src="supabase-init.js"></script>
+    <script src="supabase-query-fixes.js"></script>
+    <script src="table-name-validator.js"></script>
+    <script src="supabase-auth-wrapper.js"></script>
+    
+    <!-- Security: Hide this page from search engines and crawlers -->
+    <meta name="robots" content="noindex, nofollow, noarchive, nosnippet, noimageindex">
+    <meta name="googlebot" content="noindex, nofollow">
+</head>
+<body class="bg-gray-900 min-h-screen">
+    <!-- Security Check Modal -->
+    <div id="security-gate" class="fixed inset-0 bg-gray-900 flex items-center justify-center z-50">
+        <div class="bg-gray-800 rounded-lg p-8 max-w-md w-full mx-4 border border-red-500">
+            <div class="text-center">
+                <i class="fas fa-shield-alt text-6xl text-red-500 mb-4"></i>
+                <h2 class="text-2xl font-bold text-white mb-4">System Access Control</h2>
+                <p class="text-gray-300 mb-6">This area is restricted to system administrators only.</p>
+                
+                <div id="auth-step-1" class="mb-6">
+                    <input type="password" id="master-key" placeholder="Enter master access key" 
+                           class="w-full bg-gray-700 text-white border border-gray-600 rounded-lg px-4 py-3 mb-4 focus:ring-2 focus:ring-red-500 focus:border-red-500"
+                           autocomplete="off">
+                    <button onclick="verifyMasterKey()" 
+                            class="w-full bg-red-600 text-white px-6 py-3 rounded-lg hover:bg-red-700 transition-colors">
+                        <i class="fas fa-key mr-2"></i>
+                        Verify Access
+                    </button>
+                </div>
+                
+                <div id="auth-step-2" class="hidden mb-6">
+                    <p class="text-green-400 mb-4">✓ Master key verified. Identity confirmation required.</p>
+                    <button onclick="requireNetlifyAuth()" 
+                            class="w-full bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 transition-colors">
+                        <i class="fas fa-user-shield mr-2"></i>
+                        Confirm Identity
+                    </button>
+                </div>
+                
+                <div id="access-denied" class="hidden">
+                    <div class="bg-red-900 border border-red-700 rounded p-4 mb-4">
+                        <p class="text-red-300 text-sm">Access denied. Unauthorized access attempts are logged.</p>
+                    </div>
+                    <button onclick="location.href='index.html'" 
+                            class="bg-gray-600 text-white px-6 py-2 rounded-lg hover:bg-gray-700 transition-colors">
+                        Return to Main Site
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Owner Dashboard (Hidden until authenticated) -->
+    <div id="owner-dashboard" class="hidden container mx-auto px-4 py-8 max-w-7xl">
+        <!-- Header -->
+        <div class="bg-gray-800 rounded-lg shadow-lg border border-gray-700 p-6 mb-8">
+            <div class="flex justify-between items-center">
+                <div>
+                    <h1 class="text-3xl font-bold text-white mb-2">
+                        <i class="fas fa-database text-red-500 mr-3"></i>
+                        Owner Data Access Portal
+                    </h1>
+                    <p class="text-gray-300">Complete system data access and analytics</p>
+                </div>
+                <div class="flex items-center space-x-4">
+                    <div class="text-right">
+                        <span id="owner-email" class="text-green-400 text-sm block"></span>
+                        <span id="supabase-status" class="text-xs text-gray-400">
+                            <i class="fas fa-circle text-gray-500 mr-1"></i>
+                            Checking database...
+                        </span>
+                    </div>
+                    <button onclick="secureLogout()" 
+                            class="bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700 transition-colors text-sm">
+                        <i class="fas fa-sign-out-alt mr-1"></i>
+                        Secure Logout
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Quick Stats -->
+        <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+            <div class="bg-gray-800 border border-gray-700 rounded-lg p-6">
+                <div class="flex items-center">
+                    <i class="fas fa-users text-blue-400 text-2xl mr-4"></i>
+                    <div>
+                        <h3 class="text-lg font-semibold text-white">Total Users</h3>
+                        <p id="stat-users" class="text-3xl font-bold text-blue-400">0</p>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="bg-gray-800 border border-gray-700 rounded-lg p-6">
+                <div class="flex items-center">
+                    <i class="fas fa-utensils text-green-400 text-2xl mr-4"></i>
+                    <div>
+                        <h3 class="text-lg font-semibold text-white">Total Meals</h3>
+                        <p id="stat-meals" class="text-3xl font-bold text-green-400">0</p>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="bg-gray-800 border border-gray-700 rounded-lg p-6">
+                <div class="flex items-center">
+                    <i class="fas fa-chart-line text-purple-400 text-2xl mr-4"></i>
+                    <div>
+                        <h3 class="text-lg font-semibold text-white">Progress Entries</h3>
+                        <p id="stat-progress" class="text-3xl font-bold text-purple-400">0</p>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="bg-gray-800 border border-gray-700 rounded-lg p-6">
+                <div class="flex items-center">
+                    <i class="fas fa-book text-orange-400 text-2xl mr-4"></i>
+                    <div>
+                        <h3 class="text-lg font-semibold text-white">Custom Recipes</h3>
+                        <p id="stat-recipes" class="text-3xl font-bold text-orange-400">0</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- NEW: Enhanced Analytics for Specialized Data -->
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+            <div class="bg-gray-800 border border-gray-700 rounded-lg p-6">
+                <div class="flex items-center">
+                    <i class="fas fa-bullseye text-red-400 text-2xl mr-4"></i>
+                    <div>
+                        <h3 class="text-lg font-semibold text-white">Daily Targets</h3>
+                        <p id="stat-daily-targets" class="text-3xl font-bold text-red-400">0</p>
+                        <p class="text-sm text-gray-400">Active macro goals</p>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="bg-gray-800 border border-gray-700 rounded-lg p-6">
+                <div class="flex items-center">
+                    <i class="fas fa-cogs text-cyan-400 text-2xl mr-4"></i>
+                    <div>
+                        <h3 class="text-lg font-semibold text-white">User Preferences</h3>
+                        <p id="stat-user-preferences" class="text-3xl font-bold text-cyan-400">0</p>
+                        <p class="text-sm text-gray-400">Saved settings</p>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="bg-gray-800 border border-gray-700 rounded-lg p-6">
+                <div class="flex items-center">
+                    <i class="fas fa-calculator text-yellow-400 text-2xl mr-4"></i>
+                    <div>
+                        <h3 class="text-lg font-semibold text-white">Calculations</h3>
+                        <p id="stat-macro-calculations" class="text-3xl font-bold text-yellow-400">0</p>
+                        <p class="text-sm text-gray-400">Macro calculations made</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Coach Management Controls -->
+        <div class="bg-gray-800 border border-gray-700 rounded-lg p-6 mb-8">
+            <h2 class="text-xl font-semibold text-white mb-6">
+                <i class="fas fa-users-cog text-blue-400 mr-2"></i>
+                Multi-Coach Management System
+            </h2>
+            
+            <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+                <button onclick="showCoachOverview()" 
+                        class="bg-indigo-600 text-white px-6 py-3 rounded-lg hover:bg-indigo-700 transition-colors flex items-center justify-center">
+                    <i class="fas fa-chalkboard-teacher mr-2"></i>
+                    Coach Overview
+                </button>
+                
+                <button onclick="showClientAssignment()" 
+                        class="bg-orange-600 text-white px-6 py-3 rounded-lg hover:bg-orange-700 transition-colors flex items-center justify-center">
+                    <i class="fas fa-user-tag mr-2"></i>
+                    Assign Clients
+                </button>
+                
+                <button onclick="showInviteCodes()" 
+                        class="bg-teal-600 text-white px-6 py-3 rounded-lg hover:bg-teal-700 transition-colors flex items-center justify-center">
+                    <i class="fas fa-ticket-alt mr-2"></i>
+                    Invite Codes
+                </button>
+                
+                <button onclick="showCoachAnalytics()" 
+                        class="bg-pink-600 text-white px-6 py-3 rounded-lg hover:bg-pink-700 transition-colors flex items-center justify-center">
+                    <i class="fas fa-chart-pie mr-2"></i>
+                    Coach Analytics
+                </button>
+            </div>
+        </div>
+
+        <!-- Data Access Controls -->
+        <div class="bg-gray-800 border border-gray-700 rounded-lg p-6 mb-8">
+            <h2 class="text-xl font-semibold text-white mb-6">
+                <i class="fas fa-download text-yellow-400 mr-2"></i>
+                Data Export & Analysis
+            </h2>
+            
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+                <button onclick="exportAllTables()" 
+                        class="bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 transition-colors flex items-center justify-center">
+                    <i class="fas fa-database mr-2"></i>
+                    Export All Data (CSV)
+                </button>
+                
+                <button onclick="showUserSearch()" 
+                        class="bg-green-600 text-white px-6 py-3 rounded-lg hover:bg-green-700 transition-colors flex items-center justify-center">
+                    <i class="fas fa-search mr-2"></i>
+                    Search User Data
+                </button>
+                
+                <button onclick="showDataAnalytics()" 
+                        class="bg-purple-600 text-white px-6 py-3 rounded-lg hover:bg-purple-700 transition-colors flex items-center justify-center">
+                    <i class="fas fa-chart-bar mr-2"></i>
+                    Live Analytics
+                </button>
+            </div>
+        </div>
+
+        <!-- Coach Overview Panel -->
+        <div id="coach-overview-panel" class="hidden bg-gray-800 border border-gray-700 rounded-lg p-6 mb-8">
+            <h3 class="text-lg font-semibold text-white mb-4">
+                <i class="fas fa-chalkboard-teacher text-indigo-400 mr-2"></i>
+                Coach Overview & Performance
+            </h3>
+            <div id="coach-overview-content" class="space-y-4">
+                <!-- Coach overview will be populated here -->
+            </div>
+        </div>
+
+        <!-- Client Assignment Panel -->
+        <div id="client-assignment-panel" class="hidden bg-gray-800 border border-gray-700 rounded-lg p-6 mb-8">
+            <h3 class="text-lg font-semibold text-white mb-4">
+                <i class="fas fa-user-tag text-orange-400 mr-2"></i>
+                Client Assignment Management
+            </h3>
+            
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <!-- Unassigned Clients -->
+                <div class="bg-gray-700 rounded-lg p-4">
+                    <h4 class="text-white font-medium mb-3">
+                        <i class="fas fa-user-slash text-yellow-400 mr-2"></i>
+                        Unassigned Clients
+                    </h4>
+                    <div id="unassigned-clients" class="space-y-2 max-h-64 overflow-y-auto">
+                        <!-- Unassigned clients will be loaded here -->
+                    </div>
+                </div>
+
+                <!-- Assignment Actions -->
+                <div class="bg-gray-700 rounded-lg p-4">
+                    <h4 class="text-white font-medium mb-3">
+                        <i class="fas fa-arrow-right text-green-400 mr-2"></i>
+                        Assign Client to Coach
+                    </h4>
+                    <div class="space-y-4">
+                        <select id="client-select" class="w-full bg-gray-600 text-white border border-gray-500 rounded-lg px-3 py-2">
+                            <option value="">Select client...</option>
+                        </select>
+                        <select id="coach-select" class="w-full bg-gray-600 text-white border border-gray-500 rounded-lg px-3 py-2">
+                            <option value="">Select coach...</option>
+                        </select>
+                        <button onclick="assignClientToCoach()" 
+                                class="w-full bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition-colors">
+                            <i class="fas fa-link mr-2"></i>
+                            Assign Client
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Current Assignments -->
+            <div class="mt-6">
+                <h4 class="text-white font-medium mb-3">
+                    <i class="fas fa-users text-blue-400 mr-2"></i>
+                    Current Coach-Client Assignments
+                </h4>
+                <div id="current-assignments" class="bg-gray-700 rounded-lg p-4 max-h-96 overflow-y-auto">
+                    <!-- Current assignments will be loaded here -->
+                </div>
+            </div>
+        </div>
+
+        <!-- Invite Codes Panel -->
+        <div id="invite-codes-panel" class="hidden bg-gray-800 border border-gray-700 rounded-lg p-6 mb-8">
+            <h3 class="text-lg font-semibold text-white mb-4">
+                <i class="fas fa-ticket-alt text-teal-400 mr-2"></i>
+                Coach Invitation Codes
+            </h3>
+            
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <!-- Create New Code -->
+                <div class="bg-gray-700 rounded-lg p-4">
+                    <h4 class="text-white font-medium mb-3">Generate New Invite Code</h4>
+                    <div class="space-y-3">
+                        <input type="text" id="new-code" placeholder="e.g., COACH3-FITNESS" 
+                               class="w-full bg-gray-600 text-white border border-gray-500 rounded-lg px-3 py-2">
+                        <select id="code-coach-email" class="w-full bg-gray-600 text-white border border-gray-500 rounded-lg px-3 py-2">
+                            <option value="">Select coach...</option>
+                        </select>
+                        <button onclick="createInviteCode()" 
+                                class="w-full bg-teal-600 text-white px-4 py-2 rounded-lg hover:bg-teal-700 transition-colors">
+                            <i class="fas fa-plus mr-2"></i>
+                            Create Code
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Active Codes -->
+                <div class="bg-gray-700 rounded-lg p-4">
+                    <h4 class="text-white font-medium mb-3">Active Invitation Codes</h4>
+                    <div id="active-codes" class="space-y-2 max-h-48 overflow-y-auto">
+                        <!-- Active codes will be displayed here -->
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Coach Analytics Panel -->
+        <div id="coach-analytics-panel" class="hidden bg-gray-800 border border-gray-700 rounded-lg p-6 mb-8">
+            <h3 class="text-lg font-semibold text-white mb-4">
+                <i class="fas fa-chart-pie text-pink-400 mr-2"></i>
+                Coach Performance Analytics
+            </h3>
+            <div id="coach-analytics-content" class="space-y-6">
+                <!-- Analytics content will be populated here -->
+            </div>
+        </div>
+
+        <!-- User Search -->
+        <div id="user-search-panel" class="hidden bg-gray-800 border border-gray-700 rounded-lg p-6 mb-8">
+            <h3 class="text-lg font-semibold text-white mb-4">User Data Search</h3>
+            <div class="flex gap-4 mb-4">
+                <input type="email" id="user-email-search" placeholder="Enter user email" 
+                       class="flex-1 bg-gray-700 text-white border border-gray-600 rounded-lg px-4 py-2 focus:ring-2 focus:ring-blue-500">
+                <button onclick="searchUserData()" 
+                        class="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 transition-colors">
+                    <i class="fas fa-search mr-2"></i>
+                    Search
+                </button>
+            </div>
+            <div id="user-search-results" class="space-y-4"></div>
+        </div>
+
+        <!-- Live Data Feed -->
+        <div id="live-data-panel" class="hidden bg-gray-800 border border-gray-700 rounded-lg p-6 mb-8">
+            <div class="flex justify-between items-center mb-4">
+                <h3 class="text-lg font-semibold text-white">Live Data Feed</h3>
+                <button onclick="toggleLiveMonitoring()" id="live-toggle"
+                        class="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition-colors text-sm">
+                    <i class="fas fa-play mr-1"></i>
+                    Start Monitoring
+                </button>
+            </div>
+            <div id="live-data-results" class="space-y-2 max-h-96 overflow-y-auto"></div>
+        </div>
+
+        <!-- Console Output -->
+        <div class="bg-black border border-gray-700 rounded-lg p-6">
+            <h3 class="text-lg font-semibold text-green-400 mb-4">
+                <i class="fas fa-terminal mr-2"></i>
+                System Console
+            </h3>
+            <div id="console-output" class="font-mono text-sm text-green-400 h-64 overflow-y-auto bg-gray-900 p-4 rounded border">
+                <div class="text-green-500">System ready. Awaiting commands...</div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Security Configuration - OWNER ONLY ACCESS
+        const OWNER_CONFIG = {
+            // Your specific email - change this to your email
+            OWNER_EMAIL: 'elhambigzad2@gmail.com',
+            
+            // Master access key - change this to something only you know
+            MASTER_KEY: 'MACRO_OWNER_2025_SECURE',
+            
+            // Additional security layer
+            SYSTEM_ID: 'MACRO_CALC_ADMIN_PORTAL'
+        };
+
+        let isAuthenticated = false;
+        let liveMonitoring = false;
+        let liveInterval = null;
+
+        // Console logging function for system output
+        function logToConsole(message) {
+            const consoleDiv = document.getElementById('console-output');
+            if (consoleDiv) {
+                const timestamp = new Date().toLocaleTimeString();
+                const logEntry = document.createElement('div');
+                logEntry.innerHTML = `<span class="text-gray-500">[${timestamp}]</span> ${message}`;
+                consoleDiv.appendChild(logEntry);
+                consoleDiv.scrollTop = consoleDiv.scrollHeight;
+            }
+            console.log(message); // Also log to browser console
+        }
+
+        // Security: Disable right-click and common developer shortcuts
+        // DISABLED: Developer tools blocking for debugging purposes
+        // document.addEventListener('contextmenu', e => e.preventDefault());
+        // document.addEventListener('keydown', e => {
+        //     if (e.key === 'F12' || 
+        //         (e.ctrlKey && e.shiftKey && (e.key === 'I' || e.key === 'C' || e.key === 'J')) ||
+        //         (e.ctrlKey && e.key === 'u')) {
+        //         if (!isAuthenticated) {
+        //             e.preventDefault();
+        //             logToConsole('⚠️ Developer tools access blocked - authentication required');
+        //         }
+        //     }
+        // });
+
+        // Step 1: Master Key Verification
+        function verifyMasterKey() {
+            const inputKey = document.getElementById('master-key').value;
+            
+            if (inputKey === OWNER_CONFIG.MASTER_KEY) {
+                document.getElementById('auth-step-1').classList.add('hidden');
+                document.getElementById('auth-step-2').classList.remove('hidden');
+                logToConsole('[SUCCESS] Master key verified');
+            } else {
+                showAccessDenied();
+                logToConsole('[ERROR] Invalid master key attempt');
+            }
+        }
+        
+        // Explicitly add to global scope to prevent reference errors
+        window.verifyMasterKey = verifyMasterKey;
+
+        // Step 2: Supabase Authentication Verification
+        async function requireNetlifyAuth() {
+            try {
+                logToConsole('[AUTH] Initiating Supabase authentication...');
+                
+                // Check if already authenticated with Supabase
+                if (window.supabaseClient) {
+                    const { data: { user }, error } = await window.supabaseClient.auth.getUser();
+                    
+                    if (user && user.email === OWNER_CONFIG.OWNER_EMAIL) {
+                        logToConsole('[SUCCESS] Already authenticated with Supabase');
+                        completeAuthentication(user);
+                        return;
+                    }
+                }
+                
+                // Start Supabase authentication process
+                if (window.authWrapper) {
+                    logToConsole('[AUTH] Opening Supabase login...');
+                    window.authWrapper.open('login');
+                    
+                    // Listen for successful authentication
+                    window.authWrapper.on('login', (user) => {
+                        if (user.email === OWNER_CONFIG.OWNER_EMAIL) {
+                            logToConsole('[SUCCESS] Supabase authentication successful');
+                            completeAuthentication(user);
+                            window.authWrapper.close();
+                        } else {
+                            logToConsole('[ERROR] Unauthorized user attempted access');
+                            showAccessDenied();
+                            // Sign out unauthorized user
+                            window.supabaseClient.auth.signOut();
+                        }
+                    });
+                } else {
+                    logToConsole('⚠️ Supabase auth wrapper not available, using fallback');
+                    // Fallback for development
+                    completeAuthentication({ email: OWNER_CONFIG.OWNER_EMAIL });
+                }
+                
+            } catch (error) {
+                logToConsole(`[ERROR] Authentication error: ${error.message}`);
+                showAccessDenied();
+            }
+        }
+        
+        // Add to global scope
+        window.requireNetlifyAuth = requireNetlifyAuth;
+
+        // Complete Authentication
+        function completeAuthentication(user) {
+            isAuthenticated = true;
+            document.getElementById('security-gate').classList.add('hidden');
+            document.getElementById('owner-dashboard').classList.remove('hidden');
+            document.getElementById('owner-email').textContent = user.email;
+            
+            logToConsole(`[SUCCESS] Authenticated: ${user.email}`);
+            logToConsole(`[SUCCESS] System access granted at ${new Date().toLocaleString()}`);
+            
+            // Small delay to ensure security middleware is fully initialized
+            setTimeout(async () => {
+                logToConsole('[LOADING] Testing database connectivity...');
+                await testDatabaseConnection();
+                await updateSupabaseStatus();
+                logToConsole('[LOADING] Loading dashboard statistics...');
+                loadDashboardStats();
+            }, 1000);
+        }
+
+        // Show Access Denied
+        function showAccessDenied() {
+            document.getElementById('auth-step-1').classList.add('hidden');
+            document.getElementById('auth-step-2').classList.add('hidden');
+            document.getElementById('access-denied').classList.remove('hidden');
+        }
+        
+        // Secure Logout Function
+        function secureLogout() {
+            isAuthenticated = false;
+            liveMonitoring = false;
+            if (liveInterval) {
+                clearInterval(liveInterval);
+                liveInterval = null;
+            }
+            
+            // Sign out from Supabase if available
+            if (window.supabaseClient) {
+                window.supabaseClient.auth.signOut();
+            }
+            
+            logToConsole('[AUTH] Secure logout initiated');
+            logToConsole('[SUCCESS] Session terminated');
+            
+            // Reset UI to initial state
+            document.getElementById('security-gate').classList.remove('hidden');
+            document.getElementById('owner-dashboard').classList.add('hidden');
+            document.getElementById('auth-step-1').classList.remove('hidden');
+            document.getElementById('auth-step-2').classList.add('hidden');
+            document.getElementById('access-denied').classList.add('hidden');
+            document.getElementById('master-key').value = '';
+            
+            // Clear console
+            const consoleDiv = document.getElementById('console-output');
+            if (consoleDiv) {
+                consoleDiv.innerHTML = '<div class="text-green-500">System ready. Awaiting commands...</div>';
+            }
+        }
+        
+        // Add to global scope
+        window.showAccessDenied = showAccessDenied;
+        window.secureLogout = secureLogout;
+
+        // Update Supabase Connection Status
+        async function updateSupabaseStatus() {
+            const statusElement = document.getElementById('supabase-status');
+            
+            try {
+                if (!window.supabaseClient) {
+                    statusElement.innerHTML = '<i class="fas fa-exclamation-triangle text-yellow-500 mr-1"></i>RESTful API Only';
+                    return;
+                }
+                
+                // Test Supabase connection
+                const { data, error } = await window.supabaseClient.from('user_profiles').select('id').limit(1);
+                
+                if (error) {
+                    statusElement.innerHTML = '<i class="fas fa-times-circle text-red-500 mr-1"></i>Supabase Error';
+                    logToConsole('⚠️ Supabase connection test failed:', error.message);
+                } else {
+                    statusElement.innerHTML = '<i class="fas fa-check-circle text-green-500 mr-1"></i>Supabase Connected';
+                    logToConsole('[SUCCESS] Supabase connection confirmed');
+                }
+                
+            } catch (error) {
+                statusElement.innerHTML = '<i class="fas fa-times-circle text-red-500 mr-1"></i>Connection Failed';
+                logToConsole('[ERROR] Supabase status check failed:', error.message);
+            }
+        }
+
+        // Secure Logout
+        
+        
+        // Add to global scope
+        window.secureLogout = secureLogout;
+
+        // Load Dashboard Statistics
+        async function loadDashboardStats() {
+            try {
+                logToConsole('[STATS] Loading dashboard statistics via direct Supabase...');
+                
+                // Load each stat individually with error handling using direct Supabase
+                const users = await loadStatSafely('user_profiles');
+                const meals = await loadStatSafely('daily_meals'); 
+                const progress = await loadStatSafely('progress_entries');
+                const recipes = await loadStatSafely('custom_recipes');
+                const dailyTargets = await loadStatSafely('daily_targets');
+                const userPreferences = await loadStatSafely('user_preferences');
+                const macroCalculations = await loadStatSafely('macro_calculations');
+
+                // Update statistics display with fallback formatting
+                logToConsole(`[STATS] Updating display: Users=${users.count}, Meals=${meals.count}, Progress=${progress.count}, Recipes=${recipes.count}`);
+                
+                document.getElementById('stat-users').textContent = users.count || '0';
+                document.getElementById('stat-meals').textContent = meals.count || '0';  
+                document.getElementById('stat-progress').textContent = progress.count || '0';
+                document.getElementById('stat-recipes').textContent = recipes.count || '0';
+                document.getElementById('stat-daily-targets').textContent = dailyTargets.count || '0';
+                document.getElementById('stat-user-preferences').textContent = userPreferences.count || '0';
+                document.getElementById('stat-macro-calculations').textContent = macroCalculations.count || '0';
+                
+                logToConsole(`[SUCCESS] Dashboard stats updated successfully`);
+                
+                // Add visual indicator if all stats are 0 (might indicate connection issue)
+                const totalRecords = (users.count || 0) + (meals.count || 0) + (progress.count || 0) + (recipes.count || 0) + (dailyTargets.count || 0) + (userPreferences.count || 0) + (macroCalculations.count || 0);
+                if (totalRecords === 0) {
+                    logToConsole('ℹ️ All statistics show 0 - this might indicate:');
+                    logToConsole('   • Fresh installation with no user data yet');
+                    logToConsole('   • Database connection issues');
+                    logToConsole('   • Users haven\'t started using the app yet');
+                }
+
+                logToConsole(`[STATS] Stats loaded - Users: ${users.count || 0}, Meals: ${meals.count || 0}, Progress: ${progress.count || 0}, Recipes: ${recipes.count || 0}`);
+                logToConsole(`[STATS] New Data - Daily Targets: ${dailyTargets.count || 0}, Preferences: ${userPreferences.count || 0}, Calculations: ${macroCalculations.count || 0}`);
+                
+                // Enhanced analytics insights for new data
+                if (macroCalculations.count > 0) {
+                    logToConsole(`[SUCCESS] Macro Calculator Active - ${macroCalculations.count} calculations made by users`);
+                }
+                if (dailyTargets.count > 0) {
+                    logToConsole(`🎯 Active Goals - ${dailyTargets.count} users have set macro targets`);
+                }
+                if (userPreferences.count > 0) {
+                    logToConsole(`⚙️ Customized Settings - ${userPreferences.count} users have saved preferences`);
+                }
+                
+                // Summary of data organization
+                const newTablesTotal = (dailyTargets.count || 0) + (userPreferences.count || 0) + (macroCalculations.count || 0);
+                if (newTablesTotal > 0) {
+                    logToConsole(`🆕 Enhanced Data Structure Active - ${newTablesTotal} records in specialized tables`);
+                    logToConsole(`   [SUCCESS] Daily Targets: Individual macro goals per user`);
+                    logToConsole(`   [SUCCESS] User Preferences: Unit systems, themes, and settings`);
+                    logToConsole(`   [SUCCESS] Calculation History: Complete macro calculation records`);
+                }
+            } catch (error) {
+                logToConsole(`[ERROR] Error loading stats: ${error.message}`);
+            }
+        }
+
+        // Test Database Connection using Supabase
+        async function testDatabaseConnection() {
+            try {
+                logToConsole('🔍 Testing Supabase database connectivity...');
+                
+                if (!window.supabaseClient) {
+                    logToConsole('[ERROR] Supabase client not available');
+                    return false;
+                }
+                
+                // Test with a simple Supabase query
+                const { data, error } = await window.supabaseClient
+                    .from('user_profiles')
+                    .select('id')
+                    .limit(1);
+                
+                if (error) {
+                    logToConsole(`[ERROR] Supabase connection failed: ${error.message}`);
+                    if (error.message.includes('JWT') || error.message.includes('authentication')) {
+                        logToConsole('⚠️ Authentication required for database access');
+                        logToConsole('💡 Please ensure you are authenticated with admin role');
+                    }
+                    return false;
+                }
+                
+                logToConsole(`[SUCCESS] Supabase database connection successful`);
+                logToConsole(`[STATS] Connection test returned ${data?.length || 0} record(s)`);
+                return true;
+                
+            } catch (error) {
+                logToConsole(`[ERROR] Database connection test failed: ${error.message}`);
+                return false;
+            }
+        }
+
+        // Safely load individual statistics
+        async function loadStatSafely(tableName) {
+            try {
+                logToConsole(`🔍 Loading ${tableName} statistics via Supabase...`);
+                
+                // Use direct Supabase query instead of RESTful API
+                if (!window.supabaseClient) {
+                    logToConsole(`[ERROR] Supabase client not available for ${tableName}`);
+                    return { count: 0, data: [] };
+                }
+                
+                const { data, error, count } = await window.supabaseClient
+                    .from(tableName)
+                    .select('*', { count: 'exact' })
+                    .limit(100);
+                
+                if (error) {
+                    if (error.code === 'PGRST116' || error.message.includes('does not exist')) {
+                        logToConsole(`ℹ️ ${tableName} table does not exist - this is normal for new installations`);
+                        return { count: 0, data: [] };
+                    }
+                    throw error;
+                }
+                
+                const actualCount = count || (data ? data.length : 0);
+                logToConsole(`[SUCCESS] ${tableName}: ${actualCount} records found via Supabase`);
+                return { count: actualCount, data: data || [] };
+                
+            } catch (error) {
+                logToConsole(`[ERROR] Error loading ${tableName}: ${error.message}`);
+                return { count: 0, data: [] };
+            }
+        }
+
+        // Load Statistics from Supabase (for new specialized tables) - now unified with loadStatSafely
+        async function loadSupabaseStats(tableName) {
+            // Use the same Supabase approach as loadStatSafely
+            return await loadStatSafely(tableName);
+        }
+        
+        // Legacy function for backward compatibility
+        async function loadSupabaseStatsOld(tableName) {
+            try {
+                if (!window.supabaseClient) {
+                    logToConsole(`⚠️ Supabase not available for ${tableName}, using RESTful API fallback`);
+                    return await loadStatSafely(tableName);
+                }
+
+                logToConsole(`[STATS] Loading Supabase stats for: ${tableName}`);
+                
+                const { count, error } = await window.supabaseClient
+                    .from(tableName)
+                    .select('*', { count: 'exact', head: true });
+
+                if (error) {
+                    logToConsole(`[ERROR] Supabase stats error for ${tableName}: ${error.message}`);
+                    logToConsole(`[LOADING] Falling back to RESTful API for ${tableName}`);
+                    return await loadStatSafely(tableName);
+                }
+
+                logToConsole(`[SUCCESS] Supabase stats for ${tableName}: ${count || 0} records`);
+                return { count: count || 0 };
+            } catch (error) {
+                logToConsole(`[ERROR] Error loading Supabase stats for ${tableName}: ${error.message}`);
+                logToConsole(`[LOADING] Falling back to RESTful API for ${tableName}`);
+                return await loadStatSafely(tableName);
+            }
+        }
+
+        // Safe fetch function to avoid binding issues with security middleware
+        async function safeFetch(url, options = {}) {
+            try {
+                logToConsole(`🔍 SafeFetch attempting: ${url}`);
+                
+                // For owner portal, prioritize Supabase direct access over RESTful API
+                if (url.startsWith('tables/') && window.supabaseClient) {
+                    const tableName = url.split('/')[1].split('?')[0];
+                    const urlParams = new URLSearchParams(url.split('?')[1] || '');
+                    
+                    logToConsole(`📡 Using Supabase direct access for: ${tableName}`);
+                    
+                    try {
+                        let query = window.supabaseClient.from(tableName).select('*');
+                        
+                        // Handle limit parameter
+                        const limit = urlParams.get('limit');
+                        if (limit) {
+                            query = query.limit(parseInt(limit));
+                        }
+                        
+                        // Handle search parameter using safe helper
+                        const search = urlParams.get('search');
+                        if (search && window.SupabaseQueryHelper) {
+                            query = window.SupabaseQueryHelper.applySearchFilter(query, search, tableName);
+                        }
+                        
+                        // Handle sort parameter
+                        const sort = urlParams.get('sort');
+                        if (sort) {
+                            query = query.order(sort, { ascending: false });
+                        }
+                        
+                        const { data, error } = await query;
+                        
+                        if (error) {
+                            throw new Error(`Supabase error: ${error.message}`);
+                        }
+                        
+                        logToConsole(`[SUCCESS] Supabase query successful: ${data.length} records from ${tableName}`);
+                        
+                        // Return in RESTful API format for compatibility
+                        return {
+                            ok: true,
+                            status: 200,
+                            json: async () => ({ data, total: data.length })
+                        };
+                        
+                    } catch (supabaseError) {
+                        logToConsole(`⚠️ Supabase query failed, falling back to RESTful API: ${supabaseError.message}`);
+                        // Fall through to RESTful API
+                    }
+                }
+                
+                // Fallback to RESTful API
+                let fetchFunction;
+                if (window.originalFetchStored && typeof window.originalFetchStored === 'function') {
+                    logToConsole('[SUCCESS] Using originalFetchStored for RESTful API');
+                    fetchFunction = window.originalFetchStored;
+                } else if (typeof fetch !== 'undefined') {
+                    logToConsole('[SUCCESS] Using native fetch for RESTful API');
+                    fetchFunction = fetch;
+                } else {
+                    throw new Error('No fetch function available');
+                }
+                
+                const result = await fetchFunction.call(window, url, options);
+                logToConsole(`🎉 RESTful API call successful: ${result.status} ${result.statusText}`);
+                return result;
+                
+            } catch (error) {
+                logToConsole(`[ERROR] SafeFetch error: ${error.message}`);
+                throw error;
+            }
+        }
+
+        // Test database connection (for debugging)
+        window.testOwnerPortalDB = async function() {
+            try {
+                logToConsole('🧪 Testing owner portal database connection...');
+                const response = await safeFetch('tables/user_profiles?limit=1');
+                const data = await response.json();
+                logToConsole('[SUCCESS] Owner portal database test successful');
+                console.table(data.data);
+                return data;
+            } catch (error) {
+                logToConsole(`[ERROR] Owner portal database test failed: ${error.message}`);
+                return { error: error.message };
+            }
+        };
+
+        // Comprehensive database test for all tables
+        window.testAllTables = async function() {
+            const tables = ['user_profiles', 'daily_meals', 'progress_entries', 'custom_recipes', 'meal_plans', 'progress_goals', 'daily_targets', 'user_preferences', 'macro_calculations'];
+            const results = {};
+            
+            logToConsole('🧪 Testing all database tables...');
+            
+            for (const tableName of tables) {
+                try {
+                    const response = await safeFetch(`tables/${tableName}?limit=5`);
+                    const data = await response.json();
+                    results[tableName] = {
+                        success: true,
+                        count: data.total || data.data?.length || 0,
+                        sample: data.data?.slice(0, 2) || []
+                    };
+                    logToConsole(`[SUCCESS] ${tableName}: ${results[tableName].count} records`);
+                } catch (error) {
+                    results[tableName] = {
+                        success: false,
+                        error: error.message
+                    };
+                    logToConsole(`[ERROR] ${tableName}: ${error.message}`);
+                }
+            }
+            
+            console.log('[STATS] Complete database test results:', results);
+            return results;
+        };
+
+        // Check which users might need data migration
+        window.checkMigrationStatus = async function() {
+            try {
+                logToConsole('🔍 Checking migration status for all users...');
+                
+                // Get all users from user_profiles table
+                const profilesResponse = await safeFetch('tables/user_profiles?limit=1000');
+                const profilesData = await profilesResponse.json();
+                
+                const usersInDatabase = new Set(profilesData.data?.map(profile => profile.email) || []);
+                
+                logToConsole(`[STATS] Found ${usersInDatabase.size} users with database profiles`);
+                
+                // Check for users with profiles but no other data
+                const migrationStatus = {};
+                
+                for (const userEmail of usersInDatabase) {
+                    try {
+                        // Use direct Supabase queries to avoid PGRST100 errors
+                        console.log('🔍 Loading user data with safe queries for:', userEmail);
+                        
+                        const [mealsResult, progressResult, recipesResult] = await Promise.all([
+                            window.supabaseClient.from('daily_meals').select('*').eq('user_email', userEmail),
+                            window.supabaseClient.from('progress_entries').select('*').eq('user_email', userEmail),  
+                            window.supabaseClient.from('custom_recipes').select('*').eq('user_email', userEmail)
+                        ]);
+                        
+                        const meals = { data: mealsResult.data || [], error: mealsResult.error };
+                        const progress = { data: progressResult.data || [], error: progressResult.error };
+                        const recipes = { data: recipesResult.data || [], error: recipesResult.error };
+                        
+                        const mealsData = await meals.json();
+                        const progressData = await progress.json();
+                        const recipesData = await recipes.json();
+                        
+                        const totalRecords = (mealsData.data?.length || 0) + 
+                                           (progressData.data?.length || 0) + 
+                                           (recipesData.data?.length || 0);
+                        
+                        migrationStatus[userEmail] = {
+                            hasProfile: true,
+                            totalRecords: totalRecords,
+                            needsMigration: totalRecords === 0,
+                            meals: mealsData.data?.length || 0,
+                            progress: progressData.data?.length || 0,
+                            recipes: recipesData.data?.length || 0
+                        };
+                        
+                    } catch (error) {
+                        migrationStatus[userEmail] = {
+                            hasProfile: true,
+                            error: error.message,
+                            needsMigration: true
+                        };
+                    }
+                }
+                
+                console.log('📋 Migration Status Report:', migrationStatus);
+                
+                const needsMigration = Object.entries(migrationStatus)
+                    .filter(([email, status]) => status.needsMigration)
+                    .map(([email]) => email);
+                
+                logToConsole(`⚠️ Users who might need migration: ${needsMigration.length}`);
+                needsMigration.forEach(email => logToConsole(`   - ${email}`));
+                
+                return {
+                    totalUsers: usersInDatabase.size,
+                    needsMigration: needsMigration,
+                    fullStatus: migrationStatus
+                };
+                
+            } catch (error) {
+                logToConsole(`[ERROR] Migration status check failed: ${error.message}`);
+                return { error: error.message };
+            }
+        };
+
+        // Secure API Call using Direct Supabase (Updated for Supabase-only deployment)
+        async function secureApiCall(endpoint) {
+            if (!isAuthenticated) {
+                throw new Error('Authentication required');
+            }
+
+            logToConsole(`🌐 Secure Supabase Call: ${endpoint}`);
+            
+            try {
+                // Parse endpoint to extract table name and parameters
+                if (endpoint.startsWith('tables/')) {
+                    const [tablePart, queryPart] = endpoint.split('?');
+                    const tableName = tablePart.split('/')[1];
+                    
+                    if (!window.supabaseClient) {
+                        throw new Error('Supabase client not available');
+                    }
+                    
+                    // Parse query parameters
+                    const params = new URLSearchParams(queryPart || '');
+                    const limit = parseInt(params.get('limit')) || 1000;
+                    const search = params.get('search');
+                    const sort = params.get('sort');
+                    
+                    let query = window.supabaseClient
+                        .from(tableName)
+                        .select('*', { count: 'exact' });
+                    
+                    // Add search filter using safe helper
+                    if (search && window.SupabaseQueryHelper) {
+                        query = window.SupabaseQueryHelper.applySearchFilter(query, search, tableName);
+                    }
+                    
+                    // Add sorting if provided
+                    if (sort) {
+                        query = query.order(sort, { ascending: false });
+                    }
+                    
+                    // Add limit
+                    query = query.limit(limit);
+                    
+                    const { data: supabaseData, error: supabaseError, count } = await query;
+                    
+                    if (supabaseError) {
+                        throw new Error(`Supabase error: ${supabaseError.message}`);
+                    }
+                    
+                    const recordCount = count || supabaseData?.length || 0;
+                    logToConsole(`[SUCCESS] Supabase query successful for ${tableName}: ${recordCount} records`);
+                    
+                    return { 
+                        data: supabaseData || [], 
+                        total: recordCount,
+                        table: tableName 
+                    };
+                } else {
+                    throw new Error(`Unsupported endpoint format: ${endpoint}`);
+                }
+                
+            } catch (error) {
+                logToConsole(`[ERROR] Secure Supabase call failed for ${endpoint}: ${error.message}`);
+                throw error;
+            }
+        }
+
+        // Helper function to export table data to CSV
+        async function exportTableData(tableName, data) {
+            if (data.data && data.data.length > 0) {
+                // Convert to CSV
+                const headers = Object.keys(data.data[0]);
+                const csv = [
+                    headers.join(','),
+                    ...data.data.map(row => 
+                        headers.map(header => `"${(row[header] || '').toString().replace(/"/g, '""')}"`).join(',')
+                    )
+                ].join('\n');
+                
+                // Download CSV
+                const blob = new Blob([csv], { type: 'text/csv' });
+                const url = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.style.display = 'none';
+                a.href = url;
+                a.download = `${tableName}_export_${new Date().toISOString().split('T')[0]}.csv`;
+                document.body.appendChild(a);
+                a.click();
+                window.URL.revokeObjectURL(url);
+                document.body.removeChild(a);
+                
+                logToConsole(`[SUCCESS] Exported: ${tableName} (${data.data.length} records)`);
+            } else {
+                logToConsole(`ℹ️ No data to export for: ${tableName}`);
+            }
+        }
+
+        // Export All Tables
+        async function exportAllTables() {
+            if (!isAuthenticated) return;
+
+            logToConsole('[LOADING] Starting complete data export...');
+            
+            // Separate tables by data source
+            const restfulTables = ['user_profiles', 'daily_meals', 'progress_entries', 'meal_plans', 'custom_recipes', 'progress_goals'];
+            const supabaseTables = ['daily_targets', 'user_preferences', 'macro_calculations'];
+            
+            // Export RESTful API tables
+            for (const table of restfulTables) {
+                try {
+                    const data = await secureApiCall(`tables/${table}?limit=10000`);
+                    await exportTableData(table, data);
+                } catch (error) {
+                    logToConsole(`[ERROR] Export failed for ${table}: ${error.message}`);
+                }
+            }
+            
+            // Export Supabase tables
+            for (const table of supabaseTables) {
+                try {
+                    let data;
+                    if (window.supabaseClient) {
+                        logToConsole(`[STATS] Exporting Supabase table: ${table}`);
+                        const { data: supabaseData, error } = await window.supabaseClient
+                            .from(table)
+                            .select('*')
+                            .limit(10000);
+                        
+                        if (error) {
+                            logToConsole(`[ERROR] Supabase export error for ${table}: ${error.message}`);
+                            logToConsole(`[LOADING] Falling back to RESTful API for ${table}`);
+                            data = await secureApiCall(`tables/${table}?limit=10000`);
+                        } else {
+                            data = { data: supabaseData || [] };
+                        }
+                    } else {
+                        logToConsole(`⚠️ Supabase not available, using RESTful API for ${table}`);
+                        data = await secureApiCall(`tables/${table}?limit=10000`);
+                    }
+                    
+                    await exportTableData(table, data);
+                } catch (error) {
+                    logToConsole(`[ERROR] Export failed for ${table}: ${error.message}`);
+                }
+            }
+            
+            logToConsole('🎉 Complete data export finished');
+        }
+
+        // Show User Search Panel
+        function showUserSearch() {
+            document.getElementById('user-search-panel').classList.toggle('hidden');
+        }
+
+        // Search User Data
+        async function searchUserData() {
+            const email = document.getElementById('user-email-search').value.trim();
+            if (!email || !isAuthenticated) return;
+
+            const resultsDiv = document.getElementById('user-search-results');
+            resultsDiv.innerHTML = '<div class="text-blue-400">Searching...</div>';
+
+            try {
+                // Use direct Supabase queries to avoid PGRST100 errors
+                console.log('🔍 Searching user data with safe queries for:', email);
+                
+                const [profileResult, mealsResult, progressResult, recipesResult, plansResult, goalsResult] = await Promise.all([
+                    window.supabaseClient.from('user_profiles').select('*').eq('user_email', email),
+                    window.supabaseClient.from('daily_meals').select('*').eq('user_email', email),
+                    window.supabaseClient.from('progress_entries').select('*').eq('user_email', email),
+                    window.supabaseClient.from('custom_recipes').select('*').eq('user_email', email),
+                    window.supabaseClient.from('meal_plans').select('*').eq('user_email', email),
+                    window.supabaseClient.from('progress_goals').select('*').eq('user_email', email)
+                ]);
+                
+                const profile = { data: profileResult.data || [], error: profileResult.error };
+                const meals = { data: mealsResult.data || [], error: mealsResult.error };
+                const progress = { data: progressResult.data || [], error: progressResult.error };
+                const recipes = { data: recipesResult.data || [], error: recipesResult.error };
+                const plans = { data: plansResult.data || [], error: plansResult.error };
+                const goals = { data: goalsResult.data || [], error: goalsResult.error };
+
+                // Check if this is a registered user with no database data (needs migration)
+                const hasAnyData = [profile, meals, progress, recipes, plans, goals].some(result => result.data?.length > 0);
+                const totalRecords = [profile, meals, progress, recipes, plans, goals].reduce((sum, result) => sum + (result.data?.length || 0), 0);
+
+                let html = `
+                    <div class="bg-gray-700 rounded-lg p-4">
+                        <h4 class="text-white font-semibold mb-3">Complete Data for: ${email}</h4>
+                `;
+
+                // Show status indicator
+                if (!hasAnyData) {
+                    html += `
+                        <div class="bg-yellow-600 text-white p-3 rounded mb-4">
+                            <p class="font-semibold">⚠️ User Status: Needs Data Migration</p>
+                            <p class="text-sm">This email might be a registered user whose data is still in localStorage only. Ask them to run the migration function.</p>
+                        </div>
+                    `;
+                } else {
+                    html += `
+                        <div class="bg-green-600 text-white p-3 rounded mb-4">
+                            <p class="font-semibold">[SUCCESS] User Status: Database Records Found (${totalRecords} total)</p>
+                            <p class="text-sm">This user has successfully migrated their data to the database.</p>
+                        </div>
+                    `;
+                }
+
+                html += `
+                        <div class="grid grid-cols-2 md:grid-cols-3 gap-4 mb-4 text-sm">
+                            <div class="text-blue-300">Profile: ${profile.data?.length || 0}</div>
+                            <div class="text-green-300">Meals: ${meals.data?.length || 0}</div>
+                            <div class="text-purple-300">Progress: ${progress.data?.length || 0}</div>
+                            <div class="text-orange-300">Recipes: ${recipes.data?.length || 0}</div>
+                            <div class="text-yellow-300">Plans: ${plans.data?.length || 0}</div>
+                            <div class="text-pink-300">Goals: ${goals.data?.length || 0}</div>
+                        </div>
+                `;
+
+                // Add detailed data sections
+                if (profile.data?.length) {
+                    html += `<div class="mb-4">
+                        <h5 class="text-blue-300 font-medium mb-2">Profile Data:</h5>
+                        <pre class="bg-gray-900 p-3 rounded text-xs text-gray-300 overflow-x-auto">${JSON.stringify(profile.data[0], null, 2)}</pre>
+                    </div>`;
+                }
+
+                if (meals.data?.length) {
+                    html += `<div class="mb-4">
+                        <h5 class="text-green-300 font-medium mb-2">Recent Meals (Last 5):</h5>
+                        <pre class="bg-gray-900 p-3 rounded text-xs text-gray-300 overflow-x-auto">${JSON.stringify(meals.data.slice(0, 5), null, 2)}</pre>
+                    </div>`;
+                }
+
+                html += '</div>';
+                resultsDiv.innerHTML = html;
+
+                logToConsole(`🔍 User search completed: ${email}`);
+            } catch (error) {
+                resultsDiv.innerHTML = `<div class="text-red-400">Error: ${error.message}</div>`;
+                logToConsole(`[ERROR] User search failed: ${error.message}`);
+            }
+        }
+
+        // Show Data Analytics Panel
+        function showDataAnalytics() {
+            document.getElementById('live-data-panel').classList.toggle('hidden');
+        }
+
+        // Toggle Live Monitoring
+        function toggleLiveMonitoring() {
+            if (liveMonitoring) {
+                clearInterval(liveInterval);
+                liveMonitoring = false;
+                document.getElementById('live-toggle').innerHTML = '<i class="fas fa-play mr-1"></i> Start Monitoring';
+                document.getElementById('live-toggle').className = 'bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition-colors text-sm';
+                logToConsole('⏸️ Live monitoring stopped');
+            } else {
+                liveMonitoring = true;
+                document.getElementById('live-toggle').innerHTML = '<i class="fas fa-pause mr-1"></i> Stop Monitoring';
+                document.getElementById('live-toggle').className = 'bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700 transition-colors text-sm';
+                
+                liveInterval = setInterval(updateLiveData, 10000); // Every 10 seconds
+                updateLiveData(); // Initial load
+                logToConsole('▶️ Live monitoring started');
+            }
+        }
+
+        // Update Live Data
+        async function updateLiveData() {
+            if (!isAuthenticated) return;
+
+            try {
+                const meals = await secureApiCall('tables/daily_meals?limit=5&sort=created_at');
+                const progress = await secureApiCall('tables/progress_entries?limit=3&sort=created_at');
+
+                const liveDiv = document.getElementById('live-data-results');
+                let html = `<div class="text-xs text-gray-400 mb-2">Last updated: ${new Date().toLocaleTimeString()}</div>`;
+
+                if (meals.data?.length) {
+                    html += '<div class="bg-gray-700 p-3 rounded mb-2"><h6 class="text-green-400 font-medium mb-1">Latest Meals:</h6>';
+                    meals.data.forEach(meal => {
+                        html += `<div class="text-xs text-gray-300">${meal.email}: ${meal.food_name} (${meal.calories}cal)</div>`;
+                    });
+                    html += '</div>';
+                }
+
+                if (progress.data?.length) {
+                    html += '<div class="bg-gray-700 p-3 rounded"><h6 class="text-purple-400 font-medium mb-1">Latest Progress:</h6>';
+                    progress.data.forEach(entry => {
+                        html += `<div class="text-xs text-gray-300">${entry.email}: Weight ${entry.weight_kg} (${new Date(entry.date).toLocaleDateString()})</div>`;
+                    });
+                    html += '</div>';
+                }
+
+                liveDiv.innerHTML = html;
+                logToConsole('[SUCCESS] Live data updated successfully from Supabase');
+
+            } catch (error) {
+                logToConsole('[ERROR] Error updating live data: ' + error.message);
+                document.getElementById('live-data-results').innerHTML = 
+                    `<div class="bg-red-900 p-3 rounded">
+                        <div class="text-red-400 text-sm">[ERROR] Error loading live data</div>
+                        <div class="text-xs text-red-300 mt-1">${error.message}</div>
+                    </div>`;
+            }
+        }
+
+        // Helper function to calculate time ago
+        function getTimeAgo(dateString) {
+            const now = new Date();
+            const date = new Date(dateString);
+            const diffInSeconds = Math.floor((now - date) / 1000);
+
+            if (diffInSeconds < 60) return 'Just now';
+            if (diffInSeconds < 3600) return `${Math.floor(diffInSeconds / 60)}m ago`;
+            if (diffInSeconds < 86400) return `${Math.floor(diffInSeconds / 3600)}h ago`;
+            return `${Math.floor(diffInSeconds / 86400)}d ago`;
+        }
+
+        // Download File Helper
+        function downloadFile(content, filename, mimeType) {
+            const blob = new Blob([content], { type: mimeType });
+            const url = window.URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = filename;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            window.URL.revokeObjectURL(url);
+        }
+
+        // Console Logging
+        
+
+        // COACH MANAGEMENT FUNCTIONS
+        
+        // Show Coach Overview Panel
+        function showCoachOverview() {
+            document.getElementById('coach-overview-panel').classList.toggle('hidden');
+            if (!document.getElementById('coach-overview-panel').classList.contains('hidden')) {
+                loadCoachOverview();
+            }
+        }
+
+        // Show Client Assignment Panel
+        function showClientAssignment() {
+            document.getElementById('client-assignment-panel').classList.toggle('hidden');
+            if (!document.getElementById('client-assignment-panel').classList.contains('hidden')) {
+                loadClientAssignmentData();
+            }
+        }
+
+        // Show Invite Codes Panel
+        function showInviteCodes() {
+            document.getElementById('invite-codes-panel').classList.toggle('hidden');
+            if (!document.getElementById('invite-codes-panel').classList.contains('hidden')) {
+                loadInviteCodes();
+            }
+        }
+
+        // Show Coach Analytics Panel
+        function showCoachAnalytics() {
+            document.getElementById('coach-analytics-panel').classList.toggle('hidden');
+            if (!document.getElementById('coach-analytics-panel').classList.contains('hidden')) {
+                loadCoachAnalytics();
+            }
+        }
+
+        // Load Coach Overview
+        async function loadCoachOverview() {
+            try {
+                logToConsole('🏆 Loading enhanced coach overview from Supabase...');
+                
+                if (!window.supabaseClient) {
+                    logToConsole('[ERROR] Supabase client not available for coach overview');
+                    return;
+                }
+
+                // Fetch all data needed for comprehensive overview
+                const [usersResult, mealsResult] = await Promise.all([
+                    window.supabaseClient.from('user_profiles').select('*').limit(1000),
+                    window.supabaseClient.from('daily_meals').select('user_email, created_at, meal_date').limit(5000)
+                ]);
+
+                if (usersResult.error) {
+                    throw new Error(`Failed to fetch users: ${usersResult.error.message}`);
+                }
+                if (mealsResult.error) {
+                    throw new Error(`Failed to fetch meals: ${mealsResult.error.message}`);
+                }
+
+                const users = usersResult.data;
+                const meals = mealsResult.data;
+                const coaches = users.filter(u => u.assignment_status === 'coach');
+                const clients = users.filter(u => u.assignment_status === 'active');
+                
+                let overviewHtml = '';
+                
+                for (const coach of coaches) {
+                    // Handle both Supabase (id-based) and RESTful API (email-based) lookups
+                    const coachClients = clients.filter(c => 
+                        c.assigned_coach === coach.user_email || 
+                        c.assigned_coach === coach.email ||
+                        c.assigned_coach === coach.id ||
+                        c.coach_user_id === coach.id
+                    );
+                    
+                    // Time-based calculations
+                    const weekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+                    const monthAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+                    
+                    const recentClients = coachClients.filter(c => {
+                        const assignDate = new Date(c.coach_assignment_date);
+                        return assignDate >= weekAgo;
+                    });
+                    
+                    // Activity metrics
+                    const clientEmails = coachClients.map(c => c.user_email || c.email);
+                    const coachMeals = meals.filter(m => clientEmails.includes(m.user_email));
+                    const recentMeals = coachMeals.filter(m => new Date(m.created_at || m.meal_date) >= weekAgo);
+                    const monthlyMeals = coachMeals.filter(m => new Date(m.created_at || m.meal_date) >= monthAgo);
+                    
+                    // Active clients calculation (clients who logged meals recently)
+                    const recentlyActiveClients = [...new Set(recentMeals.map(m => m.user_email))].length;
+                    const monthlyActiveClients = [...new Set(monthlyMeals.map(m => m.user_email))].length;
+
+                    // Calculate engagement rate
+                    const engagementRate = coachClients.length > 0 ? ((monthlyActiveClients / coachClients.length) * 100).toFixed(0) : 0;
+                    
+                    overviewHtml += `
+                        <div class="bg-gray-700 rounded-lg p-4">
+                            <div class="flex justify-between items-start mb-4">
+                                <div>
+                                    <h4 class="text-white font-medium">🏆 ${coach.user_name || 'Unnamed Coach'}</h4>
+                                    <p class="text-gray-400 text-sm">${coach.user_email || coach.email}</p>
+                                    <div class="text-xs text-gray-500 mt-1">
+                                        📅 Joined: ${new Date(coach.created_at).toLocaleDateString()}
+                                    </div>
+                                </div>
+                                <div class="text-right">
+                                    <span class="bg-green-500 text-white px-2 py-1 rounded text-xs mb-1 block">Active Coach</span>
+                                    <div class="text-xs text-gray-400">${engagementRate}% engagement</div>
+                                </div>
+                            </div>
+                            
+                            <!-- Client Statistics -->
+                            <div class="grid grid-cols-2 md:grid-cols-4 gap-3 text-center mb-3">
+                                <div>
+                                    <div class="text-xl font-bold text-blue-400">${coachClients.length}</div>
+                                    <div class="text-xs text-gray-400">Total Clients</div>
+                                </div>
+                                <div>
+                                    <div class="text-xl font-bold text-green-400">${recentClients.length}</div>
+                                    <div class="text-xs text-gray-400">New This Week</div>
+                                </div>
+                                <div>
+                                    <div class="text-xl font-bold text-cyan-400">${recentlyActiveClients}</div>
+                                    <div class="text-xs text-gray-400">Active (7d)</div>
+                                </div>
+                                <div>
+                                    <div class="text-xl font-bold text-purple-400">${monthlyActiveClients}</div>
+                                    <div class="text-xs text-gray-400">Active (30d)</div>
+                                </div>
+                            </div>
+                            
+                            <!-- Activity Summary -->
+                            <div class="bg-gray-600 rounded p-3">
+                                <div class="flex justify-between items-center text-sm">
+                                    <div class="text-gray-300">
+                                        🍽️ <span class="font-medium">${recentMeals.length}</span> meals logged this week
+                                    </div>
+                                    <div class="text-gray-400">
+                                        📈 <span class="font-medium">${monthlyMeals.length}</span> total this month
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                }
+
+                // Add system overview summary
+                const totalActiveClients = [...new Set(meals.map(m => m.user_email))].length;
+                const weeklyMeals = meals.filter(m => new Date(m.created_at || m.meal_date) >= new Date(Date.now() - 7 * 24 * 60 * 60 * 1000)).length;
+                
+                let systemSummary = `
+                    <div class="bg-gradient-to-r from-blue-600 to-purple-600 rounded-lg p-4 mb-4 text-white">
+                        <h3 class="text-lg font-semibold mb-3">🌐 System Overview</h3>
+                        <div class="grid grid-cols-2 md:grid-cols-4 gap-4 text-center">
+                            <div>
+                                <div class="text-2xl font-bold">${coaches.length}</div>
+                                <div class="text-sm opacity-90">Total Coaches</div>
+                            </div>
+                            <div>
+                                <div class="text-2xl font-bold">${clients.length}</div>
+                                <div class="text-sm opacity-90">Assigned Clients</div>
+                            </div>
+                            <div>
+                                <div class="text-2xl font-bold">${totalActiveClients}</div>
+                                <div class="text-sm opacity-90">Active Users</div>
+                            </div>
+                            <div>
+                                <div class="text-2xl font-bold">${weeklyMeals}</div>
+                                <div class="text-sm opacity-90">Meals This Week</div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+
+                if (coaches.length === 0) {
+                    overviewHtml = systemSummary + `
+                        <div class="bg-gray-700 rounded-lg p-6 text-center">
+                            <div class="text-gray-400 text-lg mb-2">🏆 No Coaches Registered</div>
+                            <div class="text-sm text-gray-500">No users are currently assigned as coaches in the system</div>
+                            <div class="text-xs text-gray-600 mt-2">Add coaches through the Client Assignment panel</div>
+                        </div>
+                    `;
+                } else {
+                    overviewHtml = systemSummary + overviewHtml;
+                }
+
+                document.getElementById('coach-overview-content').innerHTML = overviewHtml;
+                logToConsole(`[STATS] Enhanced coach overview loaded - ${coaches.length} coaches, ${clients.length} clients, ${totalActiveClients} active users`);
+            } catch (error) {
+                logToConsole(`[ERROR] Error loading coach overview: ${error.message}`);
+                document.getElementById('coach-overview-content').innerHTML = `
+                    <div class="bg-red-900 rounded-lg p-4">
+                        <div class="text-red-400 font-medium">[ERROR] Error Loading Coach Overview</div>
+                        <div class="text-red-300 text-sm mt-1">${error.message}</div>
+                    </div>
+                `;
+            }
+        }
+
+        // Load Client Assignment Data
+        async function loadClientAssignmentData() {
+            try {
+                logToConsole('📋 Loading client assignment data from Supabase...');
+                
+                if (!window.supabaseClient) {
+                    logToConsole('[ERROR] Supabase client not available for client assignment');
+                    return;
+                }
+
+                // Fetch all user profiles from Supabase
+                const { data: users, error: usersError } = await window.supabaseClient
+                    .from('user_profiles')
+                    .select('*')
+                    .limit(1000);
+
+                if (usersError) {
+                    throw new Error(`Failed to fetch users: ${usersError.error.message}`);
+                }
+
+                const coaches = users.filter(u => u.assignment_status === 'coach');
+                const unassignedClients = users.filter(u => 
+                    u.assignment_status === 'unassigned' || 
+                    (!u.assigned_coach && u.assignment_status !== 'coach' && u.assignment_status !== 'owner')
+                );
+                const assignedClients = users.filter(u => u.assignment_status === 'active' && u.assigned_coach);
+
+                // Populate unassigned clients with enhanced display
+                let unassignedHtml = '';
+                unassignedClients.forEach(client => {
+                    const joinDate = new Date(client.created_at).toLocaleDateString();
+                    unassignedHtml += `
+                        <div class="bg-gray-600 rounded p-3 flex justify-between items-center hover:bg-gray-500 transition-colors">
+                            <div>
+                                <div class="text-white font-medium">${client.user_name || 'Unnamed User'}</div>
+                                <div class="text-gray-300 text-sm">${client.user_email || client.email}</div>
+                                <div class="text-gray-400 text-xs mt-1">📅 Joined: ${joinDate}</div>
+                            </div>
+                            <div class="text-right">
+                                <span class="bg-yellow-500 text-black px-2 py-1 rounded text-xs mb-1 block">Unassigned</span>
+                                <button onclick="quickAssignClient('${client.user_email || client.email}')" 
+                                        class="bg-blue-500 text-white px-2 py-1 rounded text-xs hover:bg-blue-600">
+                                    <i class="fas fa-plus"></i> Quick Assign
+                                </button>
+                            </div>
+                        </div>
+                    `;
+                });
+                document.getElementById('unassigned-clients').innerHTML = unassignedHtml || '<div class="text-gray-400 text-center py-4">No unassigned clients</div>';
+
+                // Populate client select dropdown with better options
+                let clientOptions = '<option value="">Select client to assign...</option>';
+                unassignedClients.forEach(client => {
+                    const email = client.user_email || client.email;
+                    const name = client.user_name || 'Unnamed User';
+                    const joinDate = new Date(client.created_at).toLocaleDateString();
+                    clientOptions += `<option value="${email}">${name} (${email}) - Joined: ${joinDate}</option>`;
+                });
+                if (document.getElementById('client-select')) {
+                    document.getElementById('client-select').innerHTML = clientOptions;
+                }
+
+                // Populate coach select dropdown with better options
+                let coachOptions = '<option value="">Select coach...</option>';
+                coaches.forEach(coach => {
+                    const email = coach.user_email || coach.email;
+                    const name = coach.user_name || 'Unnamed Coach';
+                    const clientCount = assignedClients.filter(c => c.assigned_coach === email).length;
+                    coachOptions += `<option value="${email}">${name} (${email}) - ${clientCount} clients</option>`;
+                });
+                if (document.getElementById('coach-select')) {
+                    document.getElementById('coach-select').innerHTML = coachOptions;
+                }
+
+                // Load current assignments with enhanced display
+                let assignmentsHtml = '';
+                const assignmentsByCoach = {};
+                assignedClients.forEach(client => {
+                    const coachEmail = client.assigned_coach;
+                    if (!assignmentsByCoach[coachEmail]) {
+                        assignmentsByCoach[coachEmail] = [];
+                    }
+                    assignmentsByCoach[coachEmail].push(client);
+                });
+
+                // Show summary first
+                assignmentsHtml += `
+                    <div class="bg-gradient-to-r from-green-600 to-blue-600 rounded-lg p-4 mb-4 text-white">
+                        <h4 class="text-lg font-semibold mb-2">[STATS] Assignment Summary</h4>
+                        <div class="grid grid-cols-2 md:grid-cols-3 gap-4 text-center">
+                            <div>
+                                <div class="text-2xl font-bold">${coaches.length}</div>
+                                <div class="text-sm opacity-90">Active Coaches</div>
+                            </div>
+                            <div>
+                                <div class="text-2xl font-bold">${assignedClients.length}</div>
+                                <div class="text-sm opacity-90">Assigned Clients</div>
+                            </div>
+                            <div>
+                                <div class="text-2xl font-bold">${unassignedClients.length}</div>
+                                <div class="text-sm opacity-90">Unassigned Clients</div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+
+                for (const [coachEmail, clients] of Object.entries(assignmentsByCoach)) {
+                    const coach = coaches.find(c => (c.user_email || c.email) === coachEmail);
+                    const coachName = coach ? (coach.user_name || 'Unnamed Coach') : coachEmail;
+                    
+                    // Calculate average assignment duration
+                    const avgDays = clients.reduce((sum, client) => {
+                        const assignDate = new Date(client.coach_assignment_date);
+                        const daysSince = Math.floor((new Date() - assignDate) / (1000 * 60 * 60 * 24));
+                        return sum + daysSince;
+                    }, 0) / clients.length;
+                    
+                    assignmentsHtml += `
+                        <div class="mb-4 bg-gray-700 rounded-lg p-4">
+                            <div class="flex justify-between items-center mb-3">
+                                <h5 class="text-blue-300 font-medium text-lg">🏆 ${coachName}</h5>
+                                <div class="text-right">
+                                    <div class="text-white font-bold">${clients.length} clients</div>
+                                    <div class="text-gray-400 text-xs">Avg: ${Math.round(avgDays)} days assigned</div>
+                                </div>
+                            </div>
+                            <div class="space-y-2">
+                    `;
+                    
+                    clients.forEach(client => {
+                        const assignDate = new Date(client.coach_assignment_date).toLocaleDateString();
+                        const daysSince = Math.floor((new Date() - new Date(client.coach_assignment_date)) / (1000 * 60 * 60 * 24));
+                        assignmentsHtml += `
+                            <div class="flex justify-between items-center bg-gray-600 rounded p-3">
+                                <div>
+                                    <span class="text-white font-medium">${client.user_name || 'Unnamed User'}</span>
+                                    <div class="text-gray-300 text-sm">${client.user_email || client.email}</div>
+                                    <div class="text-gray-400 text-xs">📅 Assigned: ${assignDate} (${daysSince} days ago)</div>
+                                </div>
+                                <div class="flex items-center space-x-2">
+                                    <span class="bg-green-500 text-white px-2 py-1 rounded text-xs">Active</span>
+                                    <button onclick="unassignClient('${client.user_email || client.email}')" 
+                                            class="bg-red-500 text-white px-3 py-1 rounded text-xs hover:bg-red-600 transition-colors">
+                                        <i class="fas fa-unlink mr-1"></i>Unassign
+                                    </button>
+                                </div>
+                            </div>
+                        `;
+                    });
+                    
+                    assignmentsHtml += '</div></div>';
+                }
+
+                if (document.getElementById('current-assignments')) {
+                    document.getElementById('current-assignments').innerHTML = assignmentsHtml || '<div class="text-gray-400 text-center py-8"><div class="text-4xl mb-2">👥</div><div class="text-lg">No Current Assignments</div><div class="text-sm">Assign clients to coaches to get started</div></div>';
+                }
+                
+                logToConsole(`📋 Client assignment data loaded successfully - ${coaches.length} coaches, ${unassignedClients.length} unassigned, ${assignedClients.length} assigned`);
+            } catch (error) {
+                logToConsole(`[ERROR] Error loading client assignment data: ${error.message}`);
+                if (document.getElementById('unassigned-clients')) {
+                    document.getElementById('unassigned-clients').innerHTML = `
+                        <div class="bg-red-900 rounded-lg p-4">
+                            <div class="text-red-400 font-medium">[ERROR] Error Loading Assignment Data</div>
+                            <div class="text-red-300 text-sm mt-1">${error.message}</div>
+                        </div>
+                    `;
+                }
+            }
+        }
+
+        // Quick assign function
+        async function quickAssignClient(clientEmail) {
+            // Get available coaches
+            try {
+                const { data: coaches } = await window.supabaseClient
+                    .from('user_profiles')
+                    .select('*')
+                    .eq('assignment_status', 'coach');
+                
+                if (!coaches || coaches.length === 0) {
+                    alert('No coaches available for assignment');
+                    return;
+                }
+                
+                // Create coach selection modal
+                let coachOptions = '';
+                coaches.forEach(coach => {
+                    coachOptions += `<option value="${coach.user_email || coach.email}">${coach.user_name || 'Unnamed Coach'} (${coach.user_email || coach.email})</option>`;
+                });
+                
+                const coachEmail = prompt(`Select a coach for client: ${clientEmail}\n\nAvailable coaches:\n${coaches.map(c => `- ${c.user_name} (${c.user_email || c.email})`).join('\n')}\n\nEnter coach email:`);
+                
+                if (coachEmail && coaches.find(c => (c.user_email || c.email) === coachEmail)) {
+                    await assignClientDirectly(clientEmail, coachEmail);
+                }
+            } catch (error) {
+                logToConsole(`[ERROR] Error in quick assign: ${error.message}`);
+            }
+        }
+
+        // Direct assignment function
+        async function assignClientDirectly(clientEmail, coachEmail) {
+            try {
+                logToConsole(`[LOADING] Quick assigning ${clientEmail} to ${coachEmail}...`);
+                
+                const { data: clients, error: findError } = await window.supabaseClient
+                    .from('user_profiles')
+                    .select('*')
+                    .eq('user_email', clientEmail)
+                    .limit(1);
+                    
+                if (findError) throw findError;
+                if (!clients || clients.length === 0) {
+                    throw new Error('Client not found in database');
+                }
+                
+                const client = clients[0];
+                
+                const { error: updateError } = await window.supabaseClient
+                    .from('user_profiles')
+                    .update({
+                        assigned_coach: coachEmail,
+                        coach_assignment_date: new Date().toISOString(),
+                        assignment_status: 'active',
+                        updated_at: new Date().toISOString()
+                    })
+                    .eq('id', client.id);
+                    
+                if (updateError) throw updateError;
+                
+                logToConsole(`[SUCCESS] Quick assignment completed: ${clientEmail} → ${coachEmail}`);
+                alert(`[SUCCESS] Successfully assigned ${client.user_name || clientEmail} to ${coachEmail}`);
+                
+                // Reload the assignment data
+                loadClientAssignmentData();
+                
+            } catch (error) {
+                logToConsole(`[ERROR] Quick assignment failed: ${error.message}`);
+                alert(`[ERROR] Assignment failed: ${error.message}`);
+            }
+        }
+
+        // Assign Client to Coach (Supabase Integrated)
+        async function assignClientToCoach() {
+            const clientEmail = document.getElementById('client-select').value;
+            const coachEmail = document.getElementById('coach-select').value;
+            
+            if (!clientEmail || !coachEmail) {
+                alert('Please select both client and coach');
+                return;
+            }
+
+            try {
+                logToConsole(`[LOADING] Assigning client ${clientEmail} to coach ${coachEmail}...`);
+                
+                // Try Supabase first
+                if (window.supabaseClient) {
+                    // Find the client by email
+                    const { data: clients, error: findError } = await window.supabaseClient
+                        .from('user_profiles')
+                        .select('*')
+                        .eq('user_email', clientEmail)
+                        .limit(1);
+                        
+                    if (findError) throw findError;
+                    if (!clients || clients.length === 0) {
+                        throw new Error('Client not found in database');
+                    }
+                    
+                    const client = clients[0];
+                    
+                    // Update client assignment using Supabase
+                    const { data, error: updateError } = await window.supabaseClient
+                        .from('user_profiles')
+                        .update({
+                            assigned_coach: coachEmail,
+                            coach_assignment_date: new Date().toISOString(),
+                            assignment_status: 'active',
+                            updated_at: new Date().toISOString()
+                        })
+                        .eq('id', client.id)
+                        .select();
+                        
+                    if (updateError) throw updateError;
+                    
+                    logToConsole(`[SUCCESS] Supabase: Client assigned successfully`);
+                } else {
+                    throw new Error('Supabase client not available');
+                }
+
+                logToConsole(`[SUCCESS] Client assignment completed: ${clientEmail} → ${coachEmail}`);
+                
+                // Clear the form
+                document.getElementById('client-select').value = '';
+                document.getElementById('coach-select').value = '';
+                
+                // Refresh the data
+                loadClientAssignmentData();
+                
+                // Show success message
+                alert(`[SUCCESS] Success!\n\nClient: ${clientEmail}\nAssigned to: ${coachEmail}\n\nThe assignment is now active.`);
+                
+            } catch (error) {
+                logToConsole(`[ERROR] Error assigning client: ${error.message}`);
+                alert(`[ERROR] Assignment Failed\n\nError: ${error.message}\n\nPlease try again or check the console for details.`);
+            }
+        }
+
+        // Unassign Client (Supabase Integrated)
+        async function unassignClient(clientEmail) {
+            if (!confirm(`Are you sure you want to unassign client: ${clientEmail}?\n\nThis will remove them from their current coach.`)) return;
+
+            try {
+                logToConsole(`[LOADING] Unassigning client: ${clientEmail}...`);
+                
+                // Try Supabase first
+                if (window.supabaseClient) {
+                    // Find the client by email
+                    const { data: clients, error: findError } = await window.supabaseClient
+                        .from('user_profiles')
+                        .select('*')
+                        .eq('user_email', clientEmail)
+                        .limit(1);
+                        
+                    if (findError) throw findError;
+                    if (!clients || clients.length === 0) {
+                        throw new Error('Client not found in database');
+                    }
+                    
+                    const client = clients[0];
+                    
+                    // Unassign client using Supabase
+                    const { data, error: updateError } = await window.supabaseClient
+                        .from('user_profiles')
+                        .update({
+                            assigned_coach: null,
+                            coach_assignment_date: null,
+                            assignment_status: 'unassigned',
+                            updated_at: new Date().toISOString()
+                        })
+                        .eq('id', client.id)
+                        .select();
+                        
+                    if (updateError) throw updateError;
+                    
+                    logToConsole(`[SUCCESS] Supabase: Client unassigned successfully`);
+                } else {
+                    throw new Error('Supabase client not available');
+                }
+
+                logToConsole(`[SUCCESS] Client unassignment completed: ${clientEmail}`);
+                
+                // Refresh the data
+                loadClientAssignmentData();
+                
+                // Show success message
+                alert(`[SUCCESS] Client Unassigned\n\n${clientEmail} is now unassigned and available for assignment to any coach.`);
+                
+            } catch (error) {
+                logToConsole(`[ERROR] Error unassigning client: ${error.message}`);
+                alert(`[ERROR] Unassignment Failed\n\nError: ${error.message}\n\nPlease try again or check the console for details.`);
+            }
+        }
+
+        // Load Invite Codes
+        async function loadInviteCodes() {
+            try {
+                logToConsole('🎫 Loading invite codes from Supabase...');
+                
+                if (!window.supabaseClient) {
+                    logToConsole('[ERROR] Supabase client not available for invite codes');
+                    return;
+                }
+
+                // Fetch coaches and invite codes from Supabase
+                const [coachesResult, codesResult] = await Promise.all([
+                    window.supabaseClient.from('user_profiles').select('*').eq('assignment_status', 'coach'),
+                    window.supabaseClient.from('invite_codes').select('*').eq('is_active', true)
+                ]);
+
+                if (coachesResult.error) {
+                    throw new Error(`Failed to fetch coaches: ${coachesResult.error.message}`);
+                }
+                if (codesResult.error) {
+                    throw new Error(`Failed to fetch invite codes: ${codesResult.error.message}`);
+                }
+
+                const coaches = coachesResult.data || [];
+                const activeCodes = codesResult.data || [];
+                
+                // Populate coach dropdown for new codes
+                let coachOptions = '<option value="">Select coach...</option>';
+                coaches.forEach(coach => {
+                    const email = coach.user_email || coach.email;
+                    const name = coach.user_name || 'Unnamed Coach';
+                    coachOptions += `<option value="${email}">${name} (${email})</option>`;
+                });
+                document.getElementById('code-coach-email').innerHTML = coachOptions;
+
+                // Display active invite codes from Supabase
+                let codesHtml = '';
+                
+                if (activeCodes.length === 0) {
+                    codesHtml = `
+                        <div class="text-gray-400 text-center py-6">
+                            <div class="text-4xl mb-2">🎫</div>
+                            <div class="text-lg">No Active Codes</div>
+                            <div class="text-sm">Create invite codes for coaches</div>
+                        </div>
+                    `;
+                } else {
+                    for (const codeData of activeCodes) {
+                        const coach = coaches.find(c => (c.user_email || c.email) === codeData.coach_email);
+                        const coachName = coach ? (coach.user_name || 'Unnamed Coach') : codeData.coach_email;
+                        const usageInfo = codeData.max_uses > 0 ? `${codeData.current_uses}/${codeData.max_uses}` : `${codeData.current_uses} uses`;
+                        const expiryInfo = codeData.expires_at ? new Date(codeData.expires_at).toLocaleDateString() : 'Never expires';
+                        
+                        codesHtml += `
+                            <div class="bg-gray-600 rounded p-3">
+                                <div class="flex justify-between items-start mb-2">
+                                    <div>
+                                        <div class="text-teal-300 font-mono font-bold text-lg">${codeData.code}</div>
+                                        <div class="text-gray-300 text-sm">🏆 ${coachName}</div>
+                                        <div class="text-gray-400 text-xs">📅 Expires: ${expiryInfo}</div>
+                                    </div>
+                                    <div class="text-right">
+                                        <div class="text-white text-sm font-medium">${usageInfo}</div>
+                                        <div class="flex space-x-1 mt-1">
+                                            <button onclick="copyInviteCode('${codeData.code}')" 
+                                                    class="bg-teal-500 text-white px-2 py-1 rounded text-xs hover:bg-teal-600">
+                                                <i class="fas fa-copy mr-1"></i>Copy
+                                            </button>
+                                            <button onclick="deactivateInviteCode('${codeData.id}')" 
+                                                    class="bg-red-500 text-white px-2 py-1 rounded text-xs hover:bg-red-600">
+                                                <i class="fas fa-times mr-1"></i>Deactivate
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        `;
+                    }
+                }
+
+                document.getElementById('active-codes').innerHTML = codesHtml;
+                
+                logToConsole(`🎫 Invite codes loaded successfully - ${activeCodes.length} active codes`);
+            } catch (error) {
+                logToConsole(`[ERROR] Error loading invite codes: ${error.message}`);
+                document.getElementById('active-codes').innerHTML = `
+                    <div class="bg-red-900 rounded-lg p-4">
+                        <div class="text-red-400 font-medium">[ERROR] Error Loading Invite Codes</div>
+                        <div class="text-red-300 text-sm mt-1">${error.message}</div>
+                    </div>
+                `;
+            }
+        }
+
+        // Create Invite Code - Supabase Integration
+        async function createInviteCode() {
+            const newCode = document.getElementById('new-code').value.trim().toUpperCase();
+            const coachEmail = document.getElementById('code-coach-email').value;
+            
+            if (!newCode || !coachEmail) {
+                alert('Please enter both code and select a coach');
+                return;
+            }
+
+            try {
+                logToConsole(`[LOADING] Creating invite code: ${newCode} → ${coachEmail}...`);
+                
+                if (!window.supabaseClient) {
+                    throw new Error('Supabase client not available');
+                }
+                
+                // Check if code already exists
+                const { data: existingCodes, error: checkError } = await window.supabaseClient
+                    .from('invite_codes')
+                    .select('id')
+                    .eq('code', newCode)
+                    .eq('is_active', true);
+                
+                if (checkError) {
+                    throw new Error(`Error checking existing codes: ${checkError.message}`);
+                }
+                
+                if (existingCodes && existingCodes.length > 0) {
+                    alert(`[ERROR] Code "${newCode}" already exists!\n\nPlease choose a different code.`);
+                    return;
+                }
+                
+                // Get coach user ID
+                const { data: coaches, error: coachError } = await window.supabaseClient
+                    .from('user_profiles')
+                    .select('id, user_id')
+                    .eq('user_email', coachEmail)
+                    .eq('assignment_status', 'coach')
+                    .limit(1);
+                
+                if (coachError) {
+                    throw new Error(`Error finding coach: ${coachError.message}`);
+                }
+                
+                if (!coaches || coaches.length === 0) {
+                    throw new Error('Coach not found in database');
+                }
+                
+                const coach = coaches[0];
+                const currentUser = await SupabaseAuth.getCurrentUser();
+                
+                // Create the invite code
+                const { data, error } = await window.supabaseClient
+                    .from('invite_codes')
+                    .insert([{
+                        code: newCode,
+                        coach_email: coachEmail,
+                        coach_user_id: coach.user_id || coach.id,
+                        created_by: currentUser?.email || 'system',
+                        is_active: true,
+                        max_uses: 0, // 0 = unlimited uses
+                        current_uses: 0,
+                        expires_at: null, // null = never expires
+                        created_at: new Date().toISOString(),
+                        updated_at: new Date().toISOString(),
+                        metadata: JSON.stringify({ created_via: 'owner_portal' })
+                    }])
+                    .select();
+                
+                if (error) {
+                    throw new Error(`Failed to create invite code: ${error.message}`);
+                }
+                
+                logToConsole(`[SUCCESS] Invite code created successfully in Supabase: ${newCode}`);
+                
+                // Clear the form
+                document.getElementById('new-code').value = '';
+                document.getElementById('code-coach-email').value = '';
+                
+                // Refresh codes display
+                await loadInviteCodes();
+                
+                alert(`[SUCCESS] Invite code "${newCode}" created successfully!\\n\\nCoach: ${coachEmail}\\nUsage: Unlimited\\nExpires: Never\\n\\nClients can use this code during registration to be automatically assigned to this coach.`);
+                
+            } catch (error) {
+                logToConsole(`[ERROR] Error creating invite code: ${error.message}`);
+                alert(`[ERROR] Failed to create invite code: ${error.message}`);
+            }
+        }
+
+        // Copy Invite Code
+        async function copyInviteCode(code) {
+            try {
+                await navigator.clipboard.writeText(code);
+                logToConsole(`📋 Copied invite code: ${code}`);
+                
+                // Show temporary success message
+                const button = event.target.closest('button');
+                const originalText = button.innerHTML;
+                button.innerHTML = '<i class="fas fa-check mr-1"></i>Copied!';
+                button.classList.remove('bg-teal-500', 'hover:bg-teal-600');
+                button.classList.add('bg-green-500');
+                
+                setTimeout(() => {
+                    button.innerHTML = originalText;
+                    button.classList.remove('bg-green-500');
+                    button.classList.add('bg-teal-500', 'hover:bg-teal-600');
+                }, 2000);
+                
+            } catch (error) {
+                logToConsole(`[ERROR] Failed to copy code: ${error.message}`);
+                alert(`[ERROR] Failed to copy code: ${error.message}`);
+            }
+        }
+
+        // Deactivate Invite Code
+        async function deactivateInviteCode(codeId) {
+            if (!confirm('Are you sure you want to deactivate this invite code?\n\nThis will prevent new users from using it, but won\'t affect existing assignments.')) {
+                return;
+            }
+
+            try {
+                logToConsole(`[LOADING] Deactivating invite code ID: ${codeId}...`);
+                
+                if (!window.supabaseClient) {
+                    throw new Error('Supabase client not available');
+                }
+                
+                const { data, error } = await window.supabaseClient
+                    .from('invite_codes')
+                    .update({
+                        is_active: false,
+                        updated_at: new Date().toISOString()
+                    })
+                    .eq('id', codeId)
+                    .select();
+                
+                if (error) {
+                    throw new Error(`Failed to deactivate code: ${error.message}`);
+                }
+                
+                logToConsole(`[SUCCESS] Invite code deactivated successfully`);
+                alert('[SUCCESS] Invite code deactivated successfully!');
+                
+                // Refresh the codes display
+                await loadInviteCodes();
+                
+            } catch (error) {
+                logToConsole(`[ERROR] Error deactivating invite code: ${error.message}`);
+                alert(`[ERROR] Failed to deactivate code: ${error.message}`);
+            }
+        }
+
+        // Redeem Invite Code (for use in main app registration)
+        async function redeemInviteCode(code, userEmail, userId) {
+            try {
+                logToConsole(`🎫 Attempting to redeem invite code: ${code} for user: ${userEmail}`);
+                
+                if (!window.supabaseClient) {
+                    throw new Error('Supabase client not available');
+                }
+                
+                // Find the invite code
+                const { data: inviteCodes, error: findError } = await window.supabaseClient
+                    .from('invite_codes')
+                    .select('*')
+                    .eq('code', code.toUpperCase())
+                    .eq('is_active', true)
+                    .limit(1);
+                
+                if (findError) {
+                    throw new Error(`Error finding invite code: ${findError.message}`);
+                }
+                
+                if (!inviteCodes || inviteCodes.length === 0) {
+                    throw new Error('Invalid or inactive invite code');
+                }
+                
+                const inviteCode = inviteCodes[0];
+                
+                // Check if code has expired
+                if (inviteCode.expires_at && new Date(inviteCode.expires_at) < new Date()) {
+                    throw new Error('Invite code has expired');
+                }
+                
+                // Check if code has reached max uses
+                if (inviteCode.max_uses > 0 && inviteCode.current_uses >= inviteCode.max_uses) {
+                    throw new Error('Invite code has reached maximum uses');
+                }
+                
+                // Begin transaction: Update user profile and log redemption
+                const updates = [];
+                
+                // 1. Update user profile with coach assignment
+                const userUpdate = window.supabaseClient
+                    .from('user_profiles')
+                    .update({
+                        assigned_coach: inviteCode.coach_email,
+                        coach_assignment_date: new Date().toISOString(),
+                        assignment_status: 'active',
+                        coach_invite_code: code.toUpperCase(),
+                        updated_at: new Date().toISOString()
+                    })
+                    .eq('user_email', userEmail);
+                
+                updates.push(userUpdate);
+                
+                // 2. Increment code usage count
+                const codeUpdate = window.supabaseClient
+                    .from('invite_codes')
+                    .update({
+                        current_uses: inviteCode.current_uses + 1,
+                        updated_at: new Date().toISOString()
+                    })
+                    .eq('id', inviteCode.id);
+                
+                updates.push(codeUpdate);
+                
+                // 3. Log the redemption
+                const redemptionLog = window.supabaseClient
+                    .from('invite_code_redemptions')
+                    .insert([{
+                        invite_code_id: inviteCode.id,
+                        code: code.toUpperCase(),
+                        user_id: userId,
+                        user_email: userEmail,
+                        coach_email: inviteCode.coach_email,
+                        redeemed_at: new Date().toISOString(),
+                        metadata: JSON.stringify({ 
+                            redemption_source: 'app_registration',
+                            user_agent: navigator.userAgent 
+                        })
+                    }]);
+                
+                updates.push(redemptionLog);
+                
+                // Execute all updates
+                const results = await Promise.all(updates);
+                
+                // Check for errors in any of the updates
+                for (let i = 0; i < results.length; i++) {
+                    if (results[i].error) {
+                        throw new Error(`Update ${i + 1} failed: ${results[i].error.message}`);
+                    }
+                }
+                
+                logToConsole(`[SUCCESS] Invite code redeemed successfully: ${userEmail} assigned to ${inviteCode.coach_email}`);
+                
+                return {
+                    success: true,
+                    coachEmail: inviteCode.coach_email,
+                    message: `Successfully assigned to coach: ${inviteCode.coach_email}`
+                };
+                
+            } catch (error) {
+                logToConsole(`[ERROR] Invite code redemption failed: ${error.message}`);
+                return {
+                    success: false,
+                    error: error.message
+                };
+            }
+        }
+
+        // Load Coach Analytics
+        async function loadCoachAnalytics() {
+            try {
+                logToConsole('📈 Loading coach analytics from Supabase...');
+                
+                if (!window.supabaseClient) {
+                    logToConsole('[ERROR] Supabase client not available for coach analytics');
+                    return;
+                }
+
+                // Fetch all data from Supabase in parallel
+                const [usersResult, mealsResult, progressResult] = await Promise.all([
+                    window.supabaseClient.from('user_profiles').select('*').limit(1000),
+                    window.supabaseClient.from('daily_meals').select('*').limit(10000),
+                    window.supabaseClient.from('progress_entries').select('*').limit(10000)
+                ]);
+
+                // Check for errors
+                if (usersResult.error) throw new Error(`Users error: ${usersResult.error.message}`);
+                if (mealsResult.error) throw new Error(`Meals error: ${mealsResult.error.message}`);
+                if (progressResult.error) throw new Error(`Progress error: ${progressResult.error.message}`);
+
+                const users = { data: usersResult.data };
+                const meals = { data: mealsResult.data };
+                const progress = { data: progressResult.data };
+
+                const coaches = users.data.filter(u => u.assignment_status === 'coach');
+                let analyticsHtml = '';
+
+                coaches.forEach(coach => {
+                    // Handle both Supabase (id-based) and RESTful API (email-based) lookups
+                    const coachClients = users.data.filter(u => 
+                        u.assigned_coach === coach.user_email || 
+                        u.assigned_coach === coach.email ||
+                        u.assigned_coach === coach.id ||
+                        u.coach_user_id === coach.id
+                    );
+                    const clientEmails = coachClients.map(c => c.user_email || c.email);
+                    
+                    const coachMeals = meals.data.filter(m => clientEmails.includes(m.user_email || m.email));
+                    const coachProgress = progress.data.filter(p => clientEmails.includes(p.user_email || p.email || p.user_id));
+                    
+                    // Enhanced analytics calculations
+                    const avgMealsPerClient = coachClients.length > 0 ? (coachMeals.length / coachClients.length).toFixed(1) : 0;
+                    const activeClients = [...new Set(coachMeals.map(m => m.user_email))].length;
+                    
+                    // Time-based analytics (last 7 days)
+                    const weekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+                    const recentMeals = coachMeals.filter(m => new Date(m.created_at || m.meal_date) >= weekAgo);
+                    const recentProgress = coachProgress.filter(p => new Date(p.created_at || p.date) >= weekAgo);
+                    const recentlyActiveClients = [...new Set(recentMeals.map(m => m.user_email))].length;
+                    
+                    analyticsHtml += `
+                        <div class="bg-gray-700 rounded-lg p-4">
+                            <div class="flex justify-between items-center mb-4">
+                                <h4 class="text-white font-medium">🏆 ${coach.user_name || coach.email} Performance</h4>
+                                <span class="text-xs text-gray-400">Last 7 days</span>
+                            </div>
+                            
+                            <!-- Overall Stats -->
+                            <div class="grid grid-cols-2 md:grid-cols-4 gap-4 text-center mb-4">
+                                <div>
+                                    <div class="text-2xl font-bold text-blue-400">${coachClients.length}</div>
+                                    <div class="text-xs text-gray-400">Total Clients</div>
+                                </div>
+                                <div>
+                                    <div class="text-2xl font-bold text-green-400">${activeClients}</div>
+                                    <div class="text-xs text-gray-400">Ever Active</div>
+                                </div>
+                                <div>
+                                    <div class="text-2xl font-bold text-yellow-400">${coachMeals.length}</div>
+                                    <div class="text-xs text-gray-400">Total Meals Logged</div>
+                                </div>
+                                <div>
+                                    <div class="text-2xl font-bold text-purple-400">${avgMealsPerClient}</div>
+                                    <div class="text-xs text-gray-400">Avg Meals/Client</div>
+                                </div>
+                            </div>
+                            
+                            <!-- Recent Activity (Last 7 Days) -->
+                            <div class="bg-gray-600 rounded p-3">
+                                <div class="text-sm text-gray-300 mb-2">📅 Recent Activity (7 days)</div>
+                                <div class="grid grid-cols-3 gap-4 text-center">
+                                    <div>
+                                        <div class="text-lg font-bold text-cyan-400">${recentlyActiveClients}</div>
+                                        <div class="text-xs text-gray-400">Active Clients</div>
+                                    </div>
+                                    <div>
+                                        <div class="text-lg font-bold text-orange-400">${recentMeals.length}</div>
+                                        <div class="text-xs text-gray-400">New Meals</div>
+                                    </div>
+                                    <div>
+                                        <div class="text-lg font-bold text-pink-400">${recentProgress.length}</div>
+                                        <div class="text-xs text-gray-400">Progress Updates</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                });
+
+                if (coaches.length === 0) {
+                    analyticsHtml = `
+                        <div class="bg-gray-700 rounded-lg p-6 text-center">
+                            <div class="text-gray-400 text-lg mb-2">👥 No Coaches Found</div>
+                            <div class="text-sm text-gray-500">No users are currently assigned as coaches</div>
+                        </div>
+                    `;
+                }
+
+                document.getElementById('coach-analytics-content').innerHTML = analyticsHtml;
+                logToConsole(`📈 Coach analytics loaded successfully for ${coaches.length} coaches`);
+            } catch (error) {
+                logToConsole(`[ERROR] Error loading coach analytics: ${error.message}`);
+                document.getElementById('coach-analytics-content').innerHTML = `
+                    <div class="bg-red-900 rounded-lg p-4">
+                        <div class="text-red-400 font-medium">[ERROR] Error Loading Coach Analytics</div>
+                        <div class="text-red-300 text-sm mt-1">${error.message}</div>
+                    </div>
+                `;
+            }
+        }
+        
+        // Show notice about static site limitations
+        function showStaticSiteNotice() {
+            // Check if notice already exists
+            if (document.getElementById('static-site-notice')) return;
+            
+            const noticeHTML = `
+                <div id="static-site-notice" class="bg-yellow-900 border-2 border-yellow-600 rounded-lg p-6 mb-6">
+                    <div class="flex items-start">
+                        <div class="flex-shrink-0">
+                            <svg class="h-6 w-6 text-yellow-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                            </svg>
+                        </div>
+                        <div class="ml-3 flex-1">
+                            <h3 class="text-lg font-medium text-yellow-300">Static Website - No Central Database</h3>
+                            <div class="mt-2 text-sm text-yellow-200">
+                                <p class="mb-3">This is a static website deployment. Here's what this means:</p>
+                                <ul class="list-disc list-inside space-y-2 mb-4">
+                                    <li><strong>User data is stored locally:</strong> Each user's data is saved in their browser's localStorage</li>
+                                    <li><strong>No central database:</strong> There's no backend server to collect and store data centrally</li>
+                                    <li><strong>Owner portal limitations:</strong> You cannot view user data from this portal</li>
+                                    <li><strong>Privacy by design:</strong> Each user's data stays on their device</li>
+                                </ul>
+                                <div class="bg-gray-800 rounded p-4 mt-4">
+                                    <p class="text-white font-semibold mb-2">To Enable Central Data Collection:</p>
+                                    <ol class="list-decimal list-inside text-gray-300 space-y-2">
+                                        <li>Use <strong>Supabase</strong> (recommended - has free tier):
+                                            <ul class="ml-6 mt-1 text-xs">
+                                                <li>• Sign up at supabase.com</li>
+                                                <li>• Create tables matching the schema</li>
+                                                <li>• Get your API keys</li>
+                                                <li>• Update app.html with Supabase client</li>
+                                            </ul>
+                                        </li>
+                                        <li>Or use <strong>Firebase Firestore</strong>:
+                                            <ul class="ml-6 mt-1 text-xs">
+                                                <li>• Create a Firebase project</li>
+                                                <li>• Enable Firestore database</li>
+                                                <li>• Add Firebase SDK to your app</li>
+                                            </ul>
+                                        </li>
+                                        <li>Or deploy <strong>Netlify Functions</strong> with a database</li>
+                                    </ol>
+                                </div>
+                                <div class="mt-4 p-3 bg-blue-900 rounded">
+                                    <p class="text-blue-200 text-xs">
+                                        <strong>Current Status:</strong> The app works perfectly for individual users. Each user's nutrition data is saved in their browser and persists across sessions. This is actually more private and secure than central storage, but you cannot view their data from this portal.
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+            
+            // Add notice after the header section
+            const statsGrid = document.querySelector('.grid.grid-cols-1.md\\:grid-cols-4.gap-4.mb-6');
+            if (statsGrid) {
+                const tempDiv = document.createElement('div');
+                tempDiv.innerHTML = noticeHTML;
+                statsGrid.parentNode.insertBefore(tempDiv.firstChild, statsGrid.nextSibling);
+            }
+        }
+
+        // Initialize Supabase Auth
+        document.addEventListener('DOMContentLoaded', function() {
+            if (authWrapper) {
+                // Auth is initialized automatically by authWrapper
+                console.log('Supabase Auth ready');
+            }
+        });
+
+        // Security: Clear authentication on page unload
+        window.addEventListener('beforeunload', function() {
+            isAuthenticated = false;
+        });
+
+        // Initialize Supabase Integration on Page Load
+        document.addEventListener('DOMContentLoaded', async function() {
+            logToConsole('🚀 Initializing Secure Owner Portal with Supabase integration...');
+            
+            // Wait for Supabase to be available
+            let supabaseRetries = 0;
+            while (!window.supabaseClient && supabaseRetries < 10) {
+                await new Promise(resolve => setTimeout(resolve, 500));
+                supabaseRetries++;
+            }
+            
+            if (window.supabaseClient) {
+                logToConsole('[SUCCESS] Supabase client is available');
+                logToConsole('[SUCCESS] Authentication wrapper is available:', !!window.authWrapper);
+                
+                // Test Supabase connection
+                try {
+                    const { data, error } = await window.supabaseClient.from('user_profiles').select('id').limit(1);
+                    if (error) throw error;
+                    logToConsole('[SUCCESS] Supabase database connection successful');
+                } catch (error) {
+                    logToConsole('⚠️ Supabase database test failed:', error.message);
+                }
+            } else {
+                logToConsole('⚠️ Supabase client not available, will use RESTful API fallback');
+            }
+            
+            logToConsole('🔧 Owner portal initialization complete');
+        });
+
+        // Debug: Test all Supabase integrations (call from console)
+        window.testSupabaseIntegrations = async function() {
+            console.log('🧪 Testing all Supabase integrations...');
+            
+            if (!window.supabaseClient) {
+                console.log('[ERROR] Supabase client not available');
+                return;
+            }
+            
+            const tables = ['user_profiles', 'daily_meals', 'progress_entries', 'custom_recipes', 'meal_plans', 'progress_goals'];
+            const results = {};
+            
+            for (const table of tables) {
+                try {
+                    const { data, error } = await window.supabaseClient.from(table).select('*').limit(1);
+                    if (error) throw error;
+                    results[table] = { status: 'success', count: data.length };
+                    console.log(`[SUCCESS] ${table}: ${data.length} records (sample)`);
+                } catch (error) {
+                    results[table] = { status: 'error', error: error.message };
+                    console.log(`[ERROR] ${table}: ${error.message}`);
+                }
+            }
+            
+            console.log('🧪 Supabase integration test results:', results);
+            return results;
+        };
+
+        // Debug: Test assignment functionality (call from console)
+        window.testAssignmentFunctions = async function() {
+            console.log('🧪 Testing assignment functionality...');
+            
+            if (!isAuthenticated) {
+                console.log('[ERROR] Not authenticated. Please login first.');
+                return;
+            }
+            
+            try {
+                // Test loading coach overview
+                console.log('[STATS] Testing coach overview...');
+                await loadCoachOverview();
+                
+                // Test loading client assignment data
+                console.log('👥 Testing client assignment data...');
+                await loadClientAssignmentData();
+                
+                // Test loading invite codes
+                console.log('🎫 Testing invite codes...');
+                await loadInviteCodes();
+                
+                // Test coach analytics
+                console.log('📈 Testing coach analytics...');
+                await loadCoachAnalytics();
+                
+                console.log('[SUCCESS] All assignment functions tested successfully');
+                
+            } catch (error) {
+                console.log('[ERROR] Assignment function test failed:', error.message);
+            }
+        };
+
+        // Debug: Complete system test (call from console)
+        window.runCompleteSystemTest = async function() {
+            console.log('🚀 Running complete system test...');
+            
+            // Test Supabase integrations
+            console.log('\n1. Testing Supabase integrations...');
+            await window.testSupabaseIntegrations();
+            
+            // Test assignment functions if authenticated
+            if (isAuthenticated) {
+                console.log('\n2. Testing assignment functions...');
+                await window.testAssignmentFunctions();
+                
+                console.log('\n3. Testing data export...');
+                try {
+                    // Test a single table export
+                    const testData = await secureApiCall('tables/user_profiles?limit=1');
+                    console.log('[SUCCESS] Data export test successful:', testData.data?.length || 0, 'records');
+                } catch (error) {
+                    console.log('[ERROR] Data export test failed:', error.message);
+                }
+            } else {
+                console.log('\n⚠️ Skipping authenticated tests - not logged in');
+            }
+            
+            console.log('\n🎉 Complete system test finished');
+        };
+
+
+        
+    </script>
+</body>
+</html>
